@@ -4,6 +4,7 @@ import { View, Text, FlatList, StyleSheet, Modal, TextInput, TouchableOpacity, A
 import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { showToast } from "./toast";
+import { PersonModal } from "../common/PersonModal";
 
 const initialPersons = [
     { id: "1", name: "Alice", age: 28 },
@@ -139,90 +140,30 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             {/* Edit Modal */}
-            <Modal
+            <PersonModal
                 visible={modalVisible}
-                animationType="slide"
-                transparent
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Edit Person</Text>
-                        <TextInput
-                            style={[styles.input, errors.name && styles.inputError]}
-                            placeholder="Name"
-                            value={editPerson?.name || ''}
-                            onChangeText={(text) => handleEditChange('name', text)}
-                        />
-                        {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
-                        <TextInput
-                            style={[styles.input, errors.age && styles.inputError]}
-                            placeholder="Age"
-                            keyboardType="numeric"
-                            value={editPerson?.age || ''}
-                            onChangeText={(text) => handleEditChange('age', text)}
-                        />
-                        {errors.age ? <Text style={styles.errorText}>{errors.age}</Text> : null}
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.cancelButton]}
-                                onPress={() => setModalVisible(false)}
-                            >
-                                <Text style={styles.modalButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.confirmButton]}
-                                onPress={handleEditConfirm}
-                            >
-                                <Text style={styles.modalButtonText}>Confirm</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+                title="Edit Person"
+                name={editPerson?.name || ''}
+                age={editPerson?.age || ''}
+                errors={errors}
+                onChange={handleEditChange}
+                onCancel={() => setModalVisible(false)}
+                onConfirm={handleEditConfirm}
+                confirmText="Confirm"
+            />
 
             {/* Add Modal */}
-            <Modal
+            <PersonModal
                 visible={addModalVisible}
-                animationType="slide"
-                transparent
-                onRequestClose={() => setAddModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Add Person</Text>
-                        <TextInput
-                            style={[styles.input, addErrors.name && styles.inputError]}
-                            placeholder="Name"
-                            value={newPerson.name}
-                            onChangeText={(text) => handleAddChange('name', text)}
-                        />
-                        {addErrors.name ? <Text style={styles.errorText}>{addErrors.name}</Text> : null}
-                        <TextInput
-                            style={[styles.input, addErrors.age && styles.inputError]}
-                            placeholder="Age"
-                            keyboardType="numeric"
-                            value={newPerson.age}
-                            onChangeText={(text) => handleAddChange('age', text)}
-                        />
-                        {addErrors.age ? <Text style={styles.errorText}>{addErrors.age}</Text> : null}
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.cancelButton]}
-                                onPress={() => setAddModalVisible(false)}
-                            >
-                                <Text style={styles.modalButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.confirmButton]}
-                                onPress={handleAddConfirm}
-                            >
-                                <Text style={styles.modalButtonText}>Add</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+                title="Add Person"
+                name={newPerson.name}
+                age={newPerson.age}
+                errors={addErrors}
+                onChange={handleAddChange}
+                onCancel={() => setAddModalVisible(false)}
+                onConfirm={handleAddConfirm}
+                confirmText="Add"
+            />
         </SafeAreaView>
     );
 }
