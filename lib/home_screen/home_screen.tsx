@@ -253,7 +253,7 @@ export default function HomeScreen() {
     // RENDER
     // ========================================================================
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
             {/* Loading Spinner */}
             <Spinner
                 visible={isLoading}
@@ -263,7 +263,9 @@ export default function HomeScreen() {
 
             {/* App Bar */}
             <View style={styles.appBar}>
-                <Text style={styles.appBarTitle}>Home</Text>
+                <SafeAreaView edges={['top']} style={{ paddingVertical: 24 }}>
+                    <Text style={styles.appBarTitle}>Home</Text>
+                </SafeAreaView>
             </View>
 
             {/* Person List */}
@@ -308,7 +310,7 @@ export default function HomeScreen() {
                 onConfirm={handleAddConfirm}
                 confirmText="Add"
             />
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -321,12 +323,10 @@ const styles = StyleSheet.create({
         backgroundColor: "#f9f9f9",
     },
     appBar: {
-        height: 56,
         backgroundColor: "#4CAF50",
         justifyContent: "center",
         alignItems: "center",
         elevation: 4,
-        marginBottom: 8,
     },
     appBarTitle: {
         color: "#fff",
