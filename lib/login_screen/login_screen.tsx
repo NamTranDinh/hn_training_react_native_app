@@ -1,27 +1,47 @@
-
-
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
+import {
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    ActivityIndicator
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../navigation_types';
+import Spinner from 'react-native-loading-spinner-overlay';
+
 
 export default function LoginScreen() {
-    const [email, setEmail] = useState('test@example.com');
-    const [password, setPassword] = useState('123456');
     const navigation = useNavigation<StackNavigationProp<RootStackParamList, 'Login'>>();
 
-    const handleLogin = () => {
-        if (!email || !password) {
+    const [emailCtl, setEmail] = useState('admin');
+    const [passwordCtl, setPassword] = useState('admin');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleLogin = async () => {
+        if (!emailCtl || !passwordCtl) {
             Alert.alert('Error', 'Please enter email and password');
             return;
         }
-        // Example validation (you can replace with API call)
-        if (email === 'test@example.com' && password === '123456') {
-            navigation.replace('Home');
-        } else {
-            Alert.alert('Error', 'Invalid credentials');
-        }
+
+        // Set loading state
+        setIsLoading(true);
+
+        // Simulate API call with 1 second delay
+        setTimeout(() => {
+            // Example validation (you can replace with API call)
+            if (emailCtl === 'admin' && passwordCtl === 'admin') {
+                setIsLoading(false);
+                navigation.replace('Home');
+            } else {
+                setIsLoading(false);
+                Alert.alert('Error', 'Invalid credentials');
+            }
+        }, 1000);
     };
 
     return (
@@ -35,21 +55,36 @@ export default function LoginScreen() {
                 placeholder="Email"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                value={email}
+                value={emailCtl}
                 onChangeText={setEmail}
+                editable={!isLoading}
             />
             <TextInput
                 style={styles.input}
                 placeholder="Password"
                 secureTextEntry
-                value={password}
+                value={passwordCtl}
                 onChangeText={setPassword}
+                editable={!isLoading}
             />
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                <Text style={styles.buttonText}>Log In</Text>
+            <TouchableOpacity
+                style={[styles.button, isLoading && styles.buttonDisabled]}
+                onPress={handleLogin}
+                disabled={isLoading}
+            >
+                {isLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                    <Text style={styles.buttonText}>Log In</Text>
+                )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => Alert.alert('Forgot Password', 'Reset link sent!')}>
-                <Text style={styles.forgotText}>Forgot Password?</Text>
+            <TouchableOpacity
+                onPress={() => Alert.alert('Account', 'admin\nadmin')}
+                disabled={isLoading}
+            >
+                <Text style={[styles.forgotText, isLoading && styles.textDisabled]}>
+                    Forgot Password?
+                </Text>
             </TouchableOpacity>
         </KeyboardAvoidingView>
     );
@@ -85,6 +120,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 8,
     },
+    buttonDisabled: {
+        backgroundColor: '#9E9E9E',
+        opacity: 0.7,
+    },
     buttonText: {
         color: '#fff',
         fontSize: 18,
@@ -94,5 +133,8 @@ const styles = StyleSheet.create({
         color: '#007BFF',
         marginTop: 16,
         alignSelf: 'center',
+    },
+    textDisabled: {
+        opacity: 0.5,
     },
 });

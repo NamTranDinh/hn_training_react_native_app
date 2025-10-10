@@ -1,12 +1,41 @@
-
-import React, { useState } from "react";
-import { View, Text, FlatList, StyleSheet, Modal, TextInput, TouchableOpacity, Alert } from "react-native";
-import { Swipeable } from 'react-native-gesture-handler';
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { FlatList, Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from "react-native-safe-area-context";
+import Spinner from 'react-native-loading-spinner-overlay';
 import { showToast } from "./toast";
 import { PersonModal } from "../common/PersonModal";
+import DeleteBtnView from "./views/delete_button_view";
 
-const initialPersons = [
+// ============================================================================
+// TYPES
+// ============================================================================
+type Person = {
+    id: string;
+    name: string;
+    age: number;
+};
+
+type PersonFormData = {
+    name: string;
+    age: string;
+};
+
+type ValidationErrors = {
+    name?: string;
+    age?: string;
+};
+
+type ModalState = {
+    visible: boolean;
+    data: PersonFormData;
+    errors: ValidationErrors;
+};
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+const INITIAL_PERSONS: Person[] = [
     { id: "1", name: "Alice", age: 28 },
     { id: "2", name: "Bob", age: 34 },
     { id: "3", name: "Charlie", age: 22 },
@@ -14,153 +43,268 @@ const initialPersons = [
     { id: "5", name: "Eve", age: 25 },
 ];
 
+const EMPTY_FORM_DATA: PersonFormData = { name: '', age: '' };
+const EMPTY_ERRORS: ValidationErrors = {};
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 export default function HomeScreen() {
-    const [persons, setPersons] = useState(initialPersons);
-    const [modalVisible, setModalVisible] = useState(false);
-    const [editPerson, setEditPerson] = useState<{ id: string; name: string; age: string } | null>(null);
-    const [errors, setErrors] = useState<{ name?: string; age?: string }>({});
-    const [addModalVisible, setAddModalVisible] = useState(false);
-    const [newPerson, setNewPerson] = useState<{ name: string; age: string }>({ name: '', age: '' });
-    const [addErrors, setAddErrors] = useState<{ name?: string; age?: string }>({});
+    // State management
+    const [persons, setPersons] = useState<Person[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
 
-    const openEditModal = (person: { id: string; name: string; age: number }) => {
-        setEditPerson({ ...person, age: String(person.age) });
-        setErrors({});
-        setModalVisible(true);
-    };
+    const [editModal, setEditModal] = useState<ModalState>({
+        visible: false,
+        data: EMPTY_FORM_DATA,
+        errors: EMPTY_ERRORS,
+    });
 
-    const handleEditChange = (field: 'name' | 'age', value: string) => {
-        if (!editPerson) return;
-        setEditPerson({ ...editPerson, [field]: value });
-    };
+    const [addModal, setAddModal] = useState<ModalState>({
+        visible: false,
+        data: EMPTY_FORM_DATA,
+        errors: EMPTY_ERRORS,
+    });
 
-    const validate = (person: { name: string; age: string }, setErr: (e: any) => void) => {
-        let valid = true;
-        let newErrors: { name?: string; age?: string } = {};
-        if (!person.name.trim()) {
-            newErrors.name = 'Name is required';
-            valid = false;
+    // ========================================================================
+    // LIFECYCLE
+    // ========================================================================
+    useEffect(() => {
+        fetchPersons();
+    }, []);
+
+    // ========================================================================
+    // DATA FETCHING
+    // ========================================================================
+    const fetchPersons = useCallback(() => {
+        setIsLoading(true);
+
+        // Simulate API call
+        setTimeout(() => {
+            setPersons(INITIAL_PERSONS);
+            setIsLoading(false);
+        }, 1000);
+    }, []);
+
+    // ========================================================================
+    // VALIDATION
+    // ========================================================================
+    const validatePerson = (data: PersonFormData): { isValid: boolean; errors: ValidationErrors } => {
+        const errors: ValidationErrors = {};
+        let isValid = true;
+
+        if (!data.name.trim()) {
+            errors.name = 'Name is required';
+            isValid = false;
         }
-        if (!person.age.trim()) {
-            newErrors.age = 'Age is required';
-            valid = false;
-        } else if (isNaN(Number(person.age)) || Number(person.age) <= 0) {
-            newErrors.age = 'Age must be a positive number';
-            valid = false;
+
+        if (!data.age.trim()) {
+            errors.age = 'Age is required';
+            isValid = false;
+        } else if (isNaN(Number(data.age)) || Number(data.age) <= 0) {
+            errors.age = 'Age must be a positive number';
+            isValid = false;
         }
-        setErr(newErrors);
-        return valid;
+
+        return { isValid, errors };
     };
 
-    const handleEditConfirm = () => {
-        if (!editPerson) return;
-        if (!validate(editPerson, setErrors)) return;
-        setPersons((prev) =>
-            prev.map((p) =>
-                p.id === editPerson.id
-                    ? { ...p, name: editPerson.name.trim(), age: Number(editPerson.age) }
-                    : p
+    // ========================================================================
+    // ADD PERSON
+    // ========================================================================
+    const openAddModal = useCallback(() => {
+        setAddModal({
+            visible: true,
+            data: EMPTY_FORM_DATA,
+            errors: EMPTY_ERRORS,
+        });
+    }, []);
+
+    const handleAddChange = useCallback((field: 'name' | 'age', value: string) => {
+        setAddModal(prev => ({
+            ...prev,
+            data: { ...prev.data, [field]: value },
+        }));
+    }, []);
+
+    const handleAddConfirm = useCallback(() => {
+        const { isValid, errors } = validatePerson(addModal.data);
+
+        if (!isValid) {
+            setAddModal(prev => ({ ...prev, errors }));
+            return;
+        }
+
+        const newId = (Math.max(0, ...persons.map(p => Number(p.id))) + 1).toString();
+        const newPerson: Person = {
+            id: newId,
+            name: addModal.data.name.trim(),
+            age: Number(addModal.data.age),
+        };
+
+        setPersons(prev => [newPerson, ...prev]);
+        setAddModal({ visible: false, data: EMPTY_FORM_DATA, errors: EMPTY_ERRORS });
+        showToast('Person added successfully');
+    }, [addModal.data, persons]);
+
+    const closeAddModal = useCallback(() => {
+        setAddModal({ visible: false, data: EMPTY_FORM_DATA, errors: EMPTY_ERRORS });
+    }, []);
+
+    // ========================================================================
+    // EDIT PERSON
+    // ========================================================================
+    const openEditModal = useCallback((person: Person) => {
+        setEditingPersonId(person.id);
+        setEditModal({
+            visible: true,
+            data: {
+                name: person.name,
+                age: String(person.age),
+            },
+            errors: EMPTY_ERRORS,
+        });
+    }, []);
+
+    const handleEditChange = useCallback((field: 'name' | 'age', value: string) => {
+        setEditModal(prev => ({
+            ...prev,
+            data: { ...prev.data, [field]: value },
+        }));
+    }, []);
+
+    const handleEditConfirm = useCallback(() => {
+        if (!editingPersonId) return;
+
+        const { isValid, errors } = validatePerson(editModal.data);
+
+        if (!isValid) {
+            setEditModal(prev => ({ ...prev, errors }));
+            return;
+        }
+
+        setPersons(prev =>
+            prev.map(person =>
+                person.id === editingPersonId
+                    ? {
+                        ...person,
+                        name: editModal.data.name.trim(),
+                        age: Number(editModal.data.age),
+                    }
+                    : person
             )
         );
-        setModalVisible(false);
-        showToast('Edit successful');
-    };
 
-    // Floating button handlers
-    const openAddModal = () => {
-        setNewPerson({ name: '', age: '' });
-        setAddErrors({});
-        setAddModalVisible(true);
-    };
+        setEditModal({ visible: false, data: EMPTY_FORM_DATA, errors: EMPTY_ERRORS });
+        setEditingPersonId(null);
+        showToast('Person updated successfully');
+    }, [editingPersonId, editModal.data]);
 
-    const handleAddChange = (field: 'name' | 'age', value: string) => {
-        setNewPerson({ ...newPerson, [field]: value });
-    };
+    const closeEditModal = useCallback(() => {
+        setEditModal({ visible: false, data: EMPTY_FORM_DATA, errors: EMPTY_ERRORS });
+        setEditingPersonId(null);
+    }, []);
 
-    const handleAddConfirm = () => {
-        if (!validate(newPerson, setAddErrors)) return;
-        setPersons((prev) => [
-            {
-                id: (Math.max(0, ...prev.map((p) => Number(p.id))) + 1).toString(),
-                name: newPerson.name.trim(),
-                age: Number(newPerson.age),
-            },
-            ...prev,
-        ]);
-        setAddModalVisible(false);
-        showToast('Add successful');
-    };
-
-    const handleDelete = (id: string) => {
+    // ========================================================================
+    // DELETE PERSON
+    // ========================================================================
+    const handleDelete = useCallback((id: string) => {
         Alert.alert(
             'Confirm Delete',
             'Are you sure you want to delete this person?',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: 'Delete', style: 'destructive',
-                    onPress: () => setPersons((prev) => prev.filter((p) => p.id !== id)),
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                        setPersons(prev => prev.filter(p => p.id !== id));
+                        showToast('Person deleted successfully');
+                    },
                 },
             ]
         );
-    };
+    }, []);
 
-    const renderRightActions = (id: string) => (
-        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(id)}>
-            <Text style={styles.deleteButtonText}>Delete</Text>
-        </TouchableOpacity>
-    );
+    // ========================================================================
+    // RENDER FUNCTIONS
+    // ========================================================================
+    const renderPersonItem = useCallback(({ item }: { item: Person }) => {
+        return (
+            <Swipeable
+                renderRightActions={() => (
+                    <DeleteBtnView onPress={() => handleDelete(item.id)} />
+                )}
+            >
+                <TouchableOpacity
+                    style={styles.personItem}
+                    onPress={() => openEditModal(item)}
+                    activeOpacity={0.7}
+                >
+                    <Text style={styles.personName}>{item.name}</Text>
+                    <Text style={styles.personAge}>Age: {item.age}</Text>
+                </TouchableOpacity>
+            </Swipeable>
+        );
+    }, [handleDelete, openEditModal]);
 
+    // ========================================================================
+    // RENDER
+    // ========================================================================
     return (
         <SafeAreaView style={styles.container}>
+            {/* Loading Spinner */}
+            <Spinner
+                visible={isLoading}
+                textContent={'Loading...'}
+                textStyle={styles.spinnerText}
+            />
+
+            {/* App Bar */}
             <View style={styles.appBar}>
                 <Text style={styles.appBarTitle}>Home</Text>
             </View>
+
+            {/* Person List */}
             <FlatList
                 data={persons}
                 keyExtractor={(item) => item.id}
+                renderItem={renderPersonItem}
                 contentContainerStyle={styles.listContent}
-                renderItem={({ item }) => (
-                    <Swipeable renderRightActions={() => renderRightActions(item.id)}>
-                        <TouchableOpacity
-                            style={styles.personItem}
-                            onPress={() => openEditModal(item)}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.personName}>{item.name}</Text>
-                            <Text style={styles.personAge}>Age: {item.age}</Text>
-                        </TouchableOpacity>
-                    </Swipeable>
-                )}
             />
 
             {/* Floating Action Button */}
-            <TouchableOpacity style={styles.fab} onPress={openAddModal} activeOpacity={0.8}>
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={openAddModal}
+                activeOpacity={0.8}
+            >
                 <Text style={styles.fabIcon}>+</Text>
             </TouchableOpacity>
 
             {/* Edit Modal */}
             <PersonModal
-                visible={modalVisible}
+                visible={editModal.visible}
                 title="Edit Person"
-                name={editPerson?.name || ''}
-                age={editPerson?.age || ''}
-                errors={errors}
+                name={editModal.data.name}
+                age={editModal.data.age}
+                errors={editModal.errors}
                 onChange={handleEditChange}
-                onCancel={() => setModalVisible(false)}
+                onCancel={closeEditModal}
                 onConfirm={handleEditConfirm}
-                confirmText="Confirm"
+                confirmText="Save"
             />
 
             {/* Add Modal */}
             <PersonModal
-                visible={addModalVisible}
+                visible={addModal.visible}
                 title="Add Person"
-                name={newPerson.name}
-                age={newPerson.age}
-                errors={addErrors}
+                name={addModal.data.name}
+                age={addModal.data.age}
+                errors={addModal.errors}
                 onChange={handleAddChange}
-                onCancel={() => setAddModalVisible(false)}
+                onCancel={closeAddModal}
                 onConfirm={handleAddConfirm}
                 confirmText="Add"
             />
@@ -168,6 +312,9 @@ export default function HomeScreen() {
     );
 }
 
+// ============================================================================
+// STYLES
+// ============================================================================
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -203,73 +350,12 @@ const styles = StyleSheet.create({
     personName: {
         fontSize: 18,
         fontWeight: "bold",
+        color: "#333",
     },
     personAge: {
         fontSize: 16,
         color: "#666",
         marginTop: 4,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalContent: {
-        width: '85%',
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 5,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 16,
-        alignSelf: 'center',
-    },
-    input: {
-        height: 48,
-        backgroundColor: '#f5f5f5',
-        borderRadius: 8,
-        paddingHorizontal: 14,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    inputError: {
-        borderColor: '#f44336',
-    },
-    errorText: {
-        color: '#f44336',
-        marginBottom: 8,
-        fontSize: 13,
-    },
-    modalActions: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        marginTop: 12,
-    },
-    modalButton: {
-        paddingVertical: 10,
-        paddingHorizontal: 18,
-        borderRadius: 6,
-        marginLeft: 10,
-    },
-    cancelButton: {
-        backgroundColor: '#bbb',
-    },
-    confirmButton: {
-        backgroundColor: '#4CAF50',
-    },
-    modalButtonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 16,
     },
     fab: {
         position: 'absolute',
@@ -283,9 +369,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         elevation: 6,
         shadowColor: '#000',
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.3,
         shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 3 },
     },
     fabIcon: {
         color: '#fff',
@@ -293,19 +379,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginTop: -2,
     },
-    deleteButton: {
-        backgroundColor: '#f44336',
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: 90,
-        height: '90%',
-        borderRadius: 8,
-        marginVertical: 6,
-        alignSelf: 'center',
-    },
-    deleteButtonText: {
+    spinnerText: {
         color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 16,
     },
 });
